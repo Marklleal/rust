@@ -4,7 +4,7 @@ pub mod register {
     #[derive(Debug)]
     pub struct People {
         pub name: String,
-        pub age: u8,
+        pub birth_date: u8,
         pub sex: char,
         pub weight: f32,
         pub height: f32,
@@ -18,10 +18,10 @@ pub mod register {
         pub fn register() -> People {
 
             let name: String = read_input("Name: ");
-            let age: u8 = match read_input("Age: ").parse() {
+            let birth_date: u8 = match read_input("birth date: ").parse() {
                 Ok(num) if num > 1 && num < 121 => num,
                 _ => {
-                    println!("Failed to parse age, it's an invalid age!");
+                    println!("Failed to parse birth date, it's an invalid birth date!");
                     0
                 }
             };
@@ -46,7 +46,7 @@ pub mod register {
             let nationality: String = read_input("Nationality: ");
             let career: String = read_input("Career: ");
     
-            People { name, age, sex, weight, height, nationality, career }
+            People { name, birth_date, sex, weight, height, nationality, career }
     
         }
     }
