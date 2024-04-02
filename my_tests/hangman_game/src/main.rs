@@ -1,13 +1,43 @@
 // Jogo da forca, CLI
 
+// possível erro ocorrendo na linha 194
+
 mod words;
 
+use rand::seq::SliceRandom;
+use std::io;
+use unicase::UniCase;
 use crossterm::{
     execute,
     terminal::{Clear, ClearType},
 };
-use rand::seq::SliceRandom;
-use std::io;
+
+// enumerações para a verificação do estado atual do 
+// jogo que é feita no loop principal do código
+enum GameEndState {
+    OutOfAttempts,
+    PlayerWon,
+    GameNotEnded
+}
+
+impl GameEndState {
+    // faz a checagem da jogada e seu estado atual
+    fn check_game_end_state(rem_att: u8, current_attempt: &String) -> GameEndState {
+        // caso o jogador tenha gastado todas as usas tentativas disponíveis
+        if rem_att == 0 { 
+            return GameEndState::OutOfAttempts;
+        } 
+        // caso não contenha mais undescores, ou seja, 
+        // a palavra tenha sido adivinhada
+        else if !current_attempt.contains("_") { 
+            return GameEndState::PlayerWon;
+        } 
+        // jogo continua normalmente...
+        else { 
+            return  GameEndState::GameNotEnded;
+        }
+    }
+}
 
 /*
     Recebe como parâmetro um vetor de &str e retorna
@@ -19,24 +49,42 @@ fn random_word<'a>(words: &'a Vec<&'a str>) -> Option<&'a str> {
     choose.copied()
 }
 
-// Retorna o caractere que foi digitado pelo usuário
+/*
+    Retorna o caractere que foi digitado pelo usuário;
+    São feitos os devidos tratamentos e que foram 
+    cabíveis para a situação.
+*/
 fn user_input_char() -> char {
-    let mut input = String::new();
+    loop {
+        let mut input = String::new();
 
-    println!("Digite apenas uma letra: ");
-    io::stdin()
-        .read_line(&mut input)
-        .expect("Falha ao ler linha!");
+        println!("Digite apenas uma letra: ");
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Falha ao ler linha!");
+    
+        if input.trim().chars().count() > 1 { // verifica se a entrada do usuário possui apenas um caractere
+            println!("É preciso que seja inserido apenas um caractere!");
+            continue; // solicita o retorno do usuário
+        } 
 
-    // converte a string para char
-    let input_char: char = match input.trim().chars().next() {
-        Some(c) => c,
-        None => {
-            println!("É preciso ser inserido apenas um caractere!");
-            std::process::exit(1);
+        // converte a string para char
+        let input_char: char = match input.trim().chars().next() {
+            Some(c) => c,
+            None => {
+                println!("Erro não tratado!");
+                std::process::exit(1);
+            }
+        };
+
+        if !input_char.is_alphabetic() {
+            println!("Números não são permitidos!");
+            continue;
         }
-    };
-    input_char
+
+        let lowercase_char = UniCase::new(input_char.to_string()).to_ascii_lowercase();
+        return lowercase_char.chars().next().unwrap_or(input_char);
+    }
 }
 
 /*
@@ -79,17 +127,36 @@ fn user_input_final() -> u8 {
     Retorna um valor u8 natural para que o valor original
     seja atualizado toda vez que a função for executada;
 */
-fn remaining_attempts(mut rem_att: u8, word: &str) -> u8 {
+fn remaining_attempts(mut rem_att: u8) -> u8 {
     rem_att -= 1;
-
-    if rem_att == 0 {
-        execute!(io::stdout(), Clear(ClearType::All)).unwrap(); // limpa o terminal
-    
-        println!("Fim de jogo!!\nA palavra era {word}.\nJogue novamente :)");
-        std::process::exit(1);
-    } 
     println!("Tentativas restantes: {rem_att}");
     rem_att
+}
+
+// Chamado para caso o usuário acerte a palavra
+fn final_choices(word: &str, tot_attempts: u32, char_attempts: Vec<char>, attempts: Vec<String>) {
+    let choice = user_input_final();
+    
+    match choice {
+        1 => println!("Palavra sorteada: {word}"),
+        2 => println!("Total de tentativas: {tot_attempts}"),
+        3 => println!("Letras digitadas: {:?}", char_attempts),
+        4 => println!("Etapas de descoberta({}): {:?}", attempts.len(), attempts),
+        5 => {
+            println!("Palavra sorteada: {word}");
+            println!("Total de tentativas: {tot_attempts}");
+            println!("Letras digitadas: {:?}", char_attempts);
+            println!("Etapas de descoberta({}): {:?}", attempts.len(), attempts);
+        }
+        6 => {
+            println!("Saindo...");
+            std::process::exit(1);
+        }
+        _ => {
+            println!("Você deveria ter escolhido um número de 1 a 6!");
+            std::process::exit(1);
+        }
+    }
 }
 
 /*
@@ -112,9 +179,14 @@ fn execute_all(word: &str) {
 
     loop {
         println!("Tentativa atual: {}", current_attempt);
+        let mut new_attempt = String::new();
 
         let input_char = user_input_char();
-        let mut new_attempt = String::new();
+        if char_attempts.contains(&input_char) {
+            println!("Você já usou a letra '{input_char}' anteriormente, tente usar outra ;)");
+            tot_attempts += 1;
+            continue;
+        }
 
         for (index, value) in word.char_indices() {
             // caso a entrada do usuário seja igual ao valor do índice atual, 
@@ -127,42 +199,53 @@ fn execute_all(word: &str) {
         }
 
         if new_attempt == current_attempt { // caso no momento o usuário não tenha acertado uma letra
-            rem_att = remaining_attempts(rem_att, word);
+            rem_att = remaining_attempts(rem_att);
         } else { // caso tenha acertado alguma letra da palavra
             attempts.push(new_attempt.clone());
             current_attempt = new_attempt;
         }
-
-        if !current_attempt.contains('_') {
-            execute!(io::stdout(), Clear(ClearType::All)).unwrap(); // limpa o terminal
-            println!("Parabéns! Você adivinhou a palavra!");
-            
-            let choice = user_input_final();
-            
-            match choice {
-                1 => println!("Palavra sorteada: {word}"),
-                2 => println!("Total de tentativas: {tot_attempts}"),
-                3 => println!("Letras digitadas: {:?}", char_attempts),
-                4 => println!("Etapas de descoberta: {:?}", attempts),
-                5 => {
-                    println!("Palavra sorteada: {word}");
-                    println!("Total de tentativas: {tot_attempts}");
-                    println!("Letras digitadas: {:?}", char_attempts);
-                    println!("Etapas de descoberta: {:?}", attempts);
-                }
-                6 => {
-                    println!("Saindo...");
-                    std::process::exit(1);
-                }
-                _ => {
-                    println!("Você deveria ter escolhido um número de 1 a 6!");
-                    std::process::exit(1);
-                }
-            }
-            break;
-        } 
+        
         tot_attempts += 1;
         char_attempts.push(input_char);
+        
+        println!("{:?}", char_attempts);
+
+        match GameEndState::check_game_end_state(rem_att, &current_attempt) {
+            GameEndState::OutOfAttempts => {
+                execute!(io::stdout(), Clear(ClearType::All)).unwrap(); // limpa o terminal
+                println!("Fim de jogo!!\nA palavra era {word}.\nJogue novamente :)");
+                break;
+            }
+            GameEndState::PlayerWon => {
+                // Chamado para caso o usuário acerte a palavra
+                // Dá opções finais após o acerto da palavra
+                execute!(io::stdout(), Clear(ClearType::All)).unwrap(); // limpa o terminal
+                println!("Parabéns! Você adivinhou a palavra!");
+                final_choices(word, tot_attempts, char_attempts, attempts);
+                break;
+            }
+            GameEndState::GameNotEnded => {
+                continue;
+            }
+        }
+    }
+}
+
+// Pergunta ao usuário se é de seu desejo o rerun do programa
+fn do_rerun() {
+    let mut input = String::new();
+
+    println!("Deseja jogar novamente?(S/N)");
+    io::stdin()
+        .read_line(&mut input)
+        .expect("Falha ao ler linha!");
+
+    if input.trim().eq_ignore_ascii_case("s") {
+        execute!(io::stdout(), Clear(ClearType::All)).unwrap(); // limpa o terminal
+        main(); // Executa o programa
+    } else {
+        println!("Saindo...");
+        std::process::exit(1);
     }
 }
 
@@ -172,6 +255,7 @@ fn main() {
     match random_word(&words) {
         Some(word) => {
             execute_all(word);
+            do_rerun();
         }
         None => {
             println!("Houve um erro imprevisto no funcionamento do código, algo foi alterado!");
