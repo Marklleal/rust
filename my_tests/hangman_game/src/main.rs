@@ -1,12 +1,9 @@
 // Jogo da forca, CLI
 
-// possível erro ocorrendo na linha 194
-
 mod words;
 
 use rand::seq::SliceRandom;
 use std::io;
-use unicase::UniCase;
 use crossterm::{
     execute,
     terminal::{Clear, ClearType},
@@ -82,8 +79,8 @@ fn user_input_char() -> char {
             continue;
         }
 
-        let lowercase_char = UniCase::new(input_char.to_string()).to_ascii_lowercase();
-        return lowercase_char.chars().next().unwrap_or(input_char);
+        let lowercase_char = input_char.to_ascii_lowercase();
+        return lowercase_char;
     }
 }
 
@@ -173,7 +170,7 @@ fn execute_all(word: &str) {
     let mut rem_att: u8 = 9;
 
     // current_attempt é preenchido com '_' de acordo com o tamanho de 'word'
-    for _ in 0..word.len() {
+    for _ in 0..word.chars().count() {
         current_attempt.push('_');
     }
 
@@ -188,13 +185,19 @@ fn execute_all(word: &str) {
             continue;
         }
 
-        for (index, value) in word.char_indices() {
-            // caso a entrada do usuário seja igual ao valor do índice atual, 
-            // ou caso o caractere do índice da tentativa atual seja diferente de '_':
-            if value == input_char || current_attempt.chars().nth(index).unwrap() != '_' {
-                new_attempt.push(value);
+        for (index, value) in current_attempt.chars().enumerate() {
+            let word_char = word.chars().nth(index).unwrap();
+            // caso o valor atual seja '_'
+            if value == '_' {
+                // se o caracter de mesmo índice da palavra sorteada 
+                // é igual ao caracter inserido pelo jogador
+                if word_char == input_char {
+                    new_attempt.push(input_char);
+                } else {
+                    new_attempt.push('_');
+                }
             } else {
-                new_attempt.push('_');
+                new_attempt.push(value as char);
             }
         }
 
@@ -250,15 +253,15 @@ fn do_rerun() {
 }
 
 fn main() {
-    let words = words::get_words();
+       let words = words::get_words();
 
-    match random_word(&words) {
-        Some(word) => {
-            execute_all(word);
-            do_rerun();
-        }
-        None => {
-            println!("Houve um erro imprevisto no funcionamento do código, algo foi alterado!");
-        }
-    }
+       match random_word(&words) {
+           Some(word) => {
+               execute_all(word);
+               do_rerun();
+           }
+           None => {
+               println!("Houve um erro imprevisto no funcionamento do código, algo foi alterado!");
+           }
+       }
 }
