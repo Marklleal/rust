@@ -19,7 +19,7 @@ enum GameEndState {
 
 impl GameEndState {
     // faz a checagem da jogada e seu estado atual
-    fn check_game_end_state(rem_att: u8, current_attempt: &String) -> GameEndState {
+    fn check_game_end_state(rem_att: u8, current_attempt: &str) -> GameEndState {
         // caso o jogador tenha gastado todas as usas tentativas disponíveis
         if rem_att == 0 { 
             return GameEndState::OutOfAttempts;
@@ -79,8 +79,7 @@ fn user_input_char() -> char {
             continue;
         }
 
-        let lowercase_char = input_char.to_ascii_lowercase();
-        return lowercase_char;
+        return input_char.to_ascii_lowercase();
     }
 }
 
@@ -151,7 +150,7 @@ fn final_choices(word: &str, tot_attempts: u32, char_attempts: Vec<char>, attemp
         }
         _ => {
             println!("Você deveria ter escolhido um número de 1 a 6!");
-            std::process::exit(1);
+            do_rerun();
         }
     }
 }
@@ -173,6 +172,10 @@ fn execute_all(word: &str) {
     for _ in 0..word.chars().count() {
         current_attempt.push('_');
     }
+
+    let init_text = String::from("Bem vindo ao jogo da forca!\nPara jogar, tente descobrir qual a palavra secreta por trás da sua atual jogada;\nDigite apenas uma letra por vez!");
+    
+    println!("{init_text}");
 
     loop {
         println!("Tentativa atual: {}", current_attempt);
@@ -210,8 +213,6 @@ fn execute_all(word: &str) {
         
         tot_attempts += 1;
         char_attempts.push(input_char);
-        
-        println!("{:?}", char_attempts);
 
         match GameEndState::check_game_end_state(rem_att, &current_attempt) {
             GameEndState::OutOfAttempts => {
@@ -253,15 +254,15 @@ fn do_rerun() {
 }
 
 fn main() {
-       let words = words::get_words();
+    let words = words::get_words();
 
-       match random_word(&words) {
-           Some(word) => {
-               execute_all(word);
-               do_rerun();
-           }
-           None => {
-               println!("Houve um erro imprevisto no funcionamento do código, algo foi alterado!");
-           }
-       }
+    match random_word(&words) {
+        Some(word) => {
+            execute_all(word);
+            do_rerun();
+        }
+        None => {
+            println!("Houve um erro imprevisto no funcionamento do código, algo foi alterado!");
+        }
+    }
 }
